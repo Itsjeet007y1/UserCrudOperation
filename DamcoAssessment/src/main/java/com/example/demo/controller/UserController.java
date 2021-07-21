@@ -39,9 +39,8 @@ public class UserController {
 	public ResponseEntity<ResponseDefObject<User>> createUser(@RequestBody User user) {
 		logger.info("saveuser end point is called.");
 		if (!userService.isUserExist(user.getUserId())) {
-			User savedUser = userService.createUser(user);
 			return new ResponseEntity<ResponseDefObject<User>>(
-					new ResponseDefObject<User>(HttpStatus.CREATED.value(), Util.SUCCESS, savedUser),
+					new ResponseDefObject<User>(HttpStatus.CREATED.value(), Util.SUCCESS, userService.createUser(user)),
 					HttpStatus.ACCEPTED);
 		} else {
 			logger.warn("User already exist with the givent userId.");

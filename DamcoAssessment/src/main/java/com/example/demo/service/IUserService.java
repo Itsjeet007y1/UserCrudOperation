@@ -17,4 +17,6 @@ public interface IUserService {
 	public String deleteUser(String id);
 
 	public boolean isUserExist(String id);
+	
+	public User findUserByUserId(String userId);
 }

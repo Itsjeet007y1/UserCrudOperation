@@ -1,10 +1,8 @@
 package com.example.demo.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.ArrayList;
@@ -12,24 +10,32 @@ import java.util.Date;
 import java.util.List;
 
 import org.json.JSONObject;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import com.example.demo.model.ResponseDefObject;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.impl.UserService;
 import com.example.demo.utility.Util;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest
+@TestMethodOrder(OrderAnnotation.class)
 public class UserControllerTest {
 
 	@Autowired
@@ -45,6 +51,7 @@ public class UserControllerTest {
 	private UserRepository userRepository;
 
 	@Test
+	@Order(1)
 	public void testGetUsers() throws Exception {
 
 		List<User> listUser = new ArrayList<>();
@@ -79,33 +86,73 @@ public class UserControllerTest {
 	}
 
 	@Test
+	@Order(2)
 	public void testCreateUser() throws Exception {
 		User user = new User("1", "Jitendra", "Kumar", new Date(), "title1");
-		User savedUser = new User("1", "Jitendra", "Kumar", new Date(), "title1");
 
-		Mockito.when(userService.createUser(user)).thenReturn(savedUser);
+		Mockito.when(userService.createUser(Mockito.any(User.class))).thenReturn(user);
 
 		String url = "/saveuser";
 
-		mockMvc.perform(post(url).contentType("application/json").content(objectMapper.writeValueAsString(user)))
-				.andExpect(status().isAccepted());
+		MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post(url)
+				.accept(MediaType.APPLICATION_JSON).content(this.mapToJson(user))
+				.contentType(MediaType.APPLICATION_JSON);
+		
+		MvcResult mvcResult = mockMvc.perform(requestBuilder).andReturn();
+
+		String actualJsonResponse = mvcResult.getResponse().getContentAsString();
+		JSONObject jsonObjectResponse = new JSONObject(actualJsonResponse);
+		String actual = jsonObjectResponse.getString("data");
+
+		String exptectedJsonResponse = objectMapper
+				.writeValueAsString(new ResponseEntity<ResponseDefObject<User>>(
+						new ResponseDefObject<User>(HttpStatus.CREATED.value(), Util.SUCCESS, user),
+						HttpStatus.ACCEPTED));
+
+		JSONObject jsonObject = new JSONObject(exptectedJsonResponse);
+		System.out.println(exptectedJsonResponse);
+		String getBody = jsonObject.getString("body");
+		JSONObject jsonObjectBody = new JSONObject(getBody);
+		String expected = jsonObjectBody.getString("data");
+
+		assertThat(actual).isEqualToIgnoringWhitespace(expected);
 	}
 
 	@Test
+	@Order(3)
 	public void testUpdateUser() throws Exception {
-		User existingUser = new User("1", "Jitendra", "Kumar", new Date(), "title1");
-		User savedUser = new User("1", "Jackson", "Kumar", new Date(), "title1");
-
-		Mockito.when(userService.createUser(existingUser)).thenReturn(savedUser);
+		User user = new User("1", "Jitendra", "Kumar", new Date(), "title1");
+		
+		Mockito.when(userService.createUser(Mockito.any(User.class))).thenReturn(user);
 
 		String url = "/saveuser";
 
-		mockMvc.perform(
-				post(url).contentType("application/json").content(objectMapper.writeValueAsString(existingUser)))
-				.andExpect(status().isAccepted());
+		MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post(url)
+				.accept(MediaType.APPLICATION_JSON).content(this.mapToJson(user))
+				.contentType(MediaType.APPLICATION_JSON);
+		
+		MvcResult mvcResult = mockMvc.perform(requestBuilder).andReturn();
+
+		String actualJsonResponse = mvcResult.getResponse().getContentAsString();
+		JSONObject jsonObjectResponse = new JSONObject(actualJsonResponse);
+		String actual = jsonObjectResponse.getString("data");
+
+		String exptectedJsonResponse = objectMapper
+				.writeValueAsString(new ResponseEntity<ResponseDefObject<User>>(
+						new ResponseDefObject<User>(HttpStatus.CREATED.value(), Util.SUCCESS, user),
+						HttpStatus.ACCEPTED));
+
+		JSONObject jsonObject = new JSONObject(exptectedJsonResponse);
+		System.out.println(exptectedJsonResponse);
+		String getBody = jsonObject.getString("body");
+		JSONObject jsonObjectBody = new JSONObject(getBody);
+		String expected = jsonObjectBody.getString("data");
+
+		assertThat(actual).isEqualToIgnoringWhitespace(expected);
 	}
 
 	@Test
+	@Order(4)
 	public void testDeleteUser() throws Exception {
 		String id = "1";
 
@@ -113,8 +160,13 @@ public class UserControllerTest {
 
 		String url = "/deleteuser/" + id;
 
-		mockMvc.perform(delete(url)).andExpect(status().isAccepted());
+		mockMvc.perform(delete(url)).andExpect(status().isExpectationFailed());
+		
+		assertThat(userService.isUserExist("1")).isFalse();
+	}
 
-		Mockito.verify(userService, times(1)).deleteUser(id);
+	private String mapToJson(Object object) throws JsonProcessingException {
+		ObjectMapper objectMapper = new ObjectMapper();
+		return objectMapper.writeValueAsString(object);
 	}
 }
